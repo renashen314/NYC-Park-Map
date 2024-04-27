@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Display a map on a webpage</title>
+    <meta
+      name="viewport"
+      content="initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+    <link
+      href="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.css"
+      rel="stylesheet"
+    />
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.js"></script>
+
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+      }
+      button {
+        display: block;
+        margin: 10px;
+      }
+      #map {
+        width: 100%;
+        height: 100%;
+        flex-grow: 1;
+      }
+      .mapboxgl-popup {
+        max-width: 200px;
+        /* padding: 10px; */
+      }
+      #container {
+        display: flex;
+        height: 100%;
+      }
+      #sidebar {
+        width: 200px;
+        flex-shrink: 0;
+        height: 100%;
+        margin: 0 20px;
+        /* padding: 30px; */
+      }
+      .map-overlay {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        background: #fff;
+        margin-right: 20px;
+        font-family: Arial, sans-serif;
+        overflow: auto;
+        border-radius: 3px;
+      }
+
+      #features {
+        top: 0;
+        height: 100px;
+        margin-top: 20px;
+        width: 250px;
+      }
+
+      #legend {
+        padding: 10px;
+        box-shadow: 0 1px 2px rgba(0 0 0 0.1);
+        line-height: 18px;
+        height: 150px;
+        margin-bottom: 40px;
+      }
+
+      .legend-key {
+        display: inline-block;
+        border-radius: 20%;
+        width: 10px;
+        height: 10px;
+        margin-right: 5px;
+      }
+      #pd {
+        color: darkgreen;
+        background-color: rgb(244, 228, 199);
+        padding: 20px;
+      }
+      #reset {
+        margin-top: 50px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Load the `mapbox-gl-geocoder` plugin. -->
+    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.min.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.css"
+      type="text/css"
+    />
+
+    <div id="container">
+      <div id="sidebar">
+        <h2>NYC Park Properties</h2>
+        <div id="pd"><p>Click on a park!</p></div>
+        <button id="toggle-POPS">Toggle Private Parks</button>
+        <button id="toggle-basketball">Toggle basketball courts</button>
+        <button id="toggle-tracks">Toggle running tracks</button>
+        <button id="toggle-boroughs">Toggle Boroughs</button>
+        <button id="reset">Reset</button>
+      </div>
+      <div id="map"></div>
+
+      <div class="map-overlay" id="legend"></div>
+    </div>
+
+    <script>
+      mapboxgl.accessToken =
+        "pk.eyJ1IjoicmVuYXNoZW4zMTQiLCJhIjoiY2x1N2F4ZXBrMDQ3aTJqbXpoOHltbG0yaiJ9.F6cfnC2Q5b6Ow10a9qOvxQ";
+
+      //----------create base map-------------//
+      const INTI_CENTER = [-73.97, 40.68];
+      const INIT_ZOOM = 11;
+      const map = new mapboxgl.Map({
+        container: "map", // container ID
+        center: INTI_CENTER, // starting position [lng, lat]
+        zoom: INIT_ZOOM, // starting zoom
+        style: "mapbox://styles/renashen314/cluefsed800gz01ql7gbs4lef/draft",
+      });
+      map.addControl(
+        new MapboxGeocoder({
+          accessToken: mapboxgl.accessToken,
+          mapboxgl: mapboxgl,
+        })
+      );
+
+      //----------Create a default Marker and add it to the map-----------//
+      // const popup = new mapboxgl.Popup({
+      //   offset: 25,
+      // }).setText("Prospect Park");
+
+      // marker1 = new mapboxgl.Marker({ color: "green", scale: 2 })
+      //   .setLngLat([-73.97, 40.66651])
+      //   .setPopup(popup)
+      //   .addTo(map);
+      //----------add park layer-------------//
+
+      //----------add a source layer for boroughs---------//
+      map.on("load", () => {
+        map.addSource("borough-boundaries", {
+          type: "geojson",
+          data: "./data/borough-boundaries.geojson",
+          promoteId: "boro_code",
+        });
+        map.addSource("Parks_Properties", {
+          type: "geojson",
+          data: "./data/Parks_Properties.geojson",
+          promoteId: "omppropid",
+        });
+        map.addSource("POPS", {
+          type: "geojson",
+          data: "./data/privately-owened-public-spaces.geojson",
+        });
+        map.addSource("basketball-courts", {
+          type: "geojson",
+          data: "./data/basketball-court.geojson",
+        });
+        map.addSource("running-tracks", {
+          type: "geojson",
+          data: "./data/running-track.geojson",
+        });
+
+        // Add a circle layer with a vector source
+        map.addLayer(
+          {
+            id: "running-tracks",
+            type: "circle",
+            source: "running-tracks",
+            paint: {
+              "circle-color": "blue",
+              "circle-radius": {
+                base: 3,
+                stops: [
+                  [12, 4],
+                  [22, 180],
+                ],
+              },
+              "circle-opacity": 1,
+            },
+            layout: {
+              visibility: "none",
+            },
+          },
+          "road-label-simple"
+        );
+        map.addLayer(
+          {
+            id: "basketball-courts",
+            type: "circle",
+            source: "basketball-courts",
+            paint: {
+              "circle-color": "orange",
+              "circle-radius": {
+                base: 3,
+                stops: [
+                  [12, 4],
+                  [22, 180],
+                ],
+              },
+              "circle-opacity": 0.7,
+            },
+            layout: {
+              visibility: "none",
+            },
+          },
+          "road-label-simple"
+        );
+
+        map.addLayer(
+          {
+            id: "POPS",
+            type: "circle",
+            source: "POPS",
+            paint: {
+              "circle-color": "purple",
+              "circle-radius": 8,
+              "circle-opacity": 0.5,
+            },
+            layout: {
+              visibility: "visible",
+            },
+          },
+          "road-label-simple"
+        );
+        map.addLayer(
+          {
+            id: "nyc-parks",
+            type: "fill",
+            source: "Parks_Properties",
+            paint: {
+              "fill-color": "green",
+              "fill-opacity": [
+                "case",
+                ["boolean", ["feature-state", "hover"], false],
+                0.5,
+                0.2,
+              ],
+            },
+            layout: {
+              visibility: "visible",
+            },
+          },
+          "road-label-simple"
+        );
+
+        map.addLayer(
+          {
+            id: "borough-boundaries-fill",
+            type: "fill",
+            source: "borough-boundaries",
+            paint: {
+              "fill-opacity": [
+                "case",
+                ["boolean", ["feature-state", "hover"], false],
+                0.5,
+                0.2,
+              ],
+              "fill-color": [
+                "match",
+                ["get", "boro_code"],
+                "1",
+                "green",
+                "2",
+                "purple",
+                "3",
+                "orange",
+                "4",
+                "yellow",
+                "5",
+                "pink",
+                "steelblue",
+              ],
+            },
+            layout: {
+              visibility: "none",
+            },
+          },
+          "road-label-simple"
+        );
+        map.addLayer(
+          {
+            id: "borough-boundaries-line",
+            type: "line",
+            source: "borough-boundaries",
+            paint: {
+              "line-color": "black",
+              "line-width": 1,
+            },
+            layout: {
+              visibility: "none",
+            },
+          },
+          "road-label-simple"
+        );
+      });
+
+      // map.on("click", (e) => {
+      //   const [selectedBorough] = map.queryRenderedFeatures(e.point, {
+      //     layers: ["borough-boundaries-fill"],
+      //   });
+      //   if (selectedBorough) {
+      //     const { boro_name, pop2020 } = selectedBorough.properties;
+      //     alert(`The estimated population of ${boro_name} is ${pop2020}`);
+      //   }
+      // });
+
+      map.on("click", (e) => {
+        const selectedPark = map.queryRenderedFeatures(e.point, {
+          layers: ["nyc-parks"],
+        });
+        if (selectedPark.length !== 0) {
+          const { name311, typecategory, subcategory, location } =
+            selectedPark[0].properties;
+          document.getElementById("pd").innerHTML = selectedPark.length
+            ? `<h3>${name311}</h3><p><em><strong>Type:</strong> ${typecategory} <strong>Subcategory:</strong> ${subcategory}</em></p><strong>Location:</strong> ${location}</p>`
+            : `<p>Click on a park!</p>`;
+        }
+      });
+
+      let hoveredStateId = null;
+      map.on("mouseover", "borough-boundaries-fill", (e) => {
+        if (e.features.length > 0) {
+          if (hoveredStateId !== null) {
+            map.setFeatureState(
+              { source: "borough-boundaries", id: hoveredStateId },
+              { hover: false }
+            );
+          }
+          hoveredStateId = e.features[0].id;
+          map.setFeatureState(
+            { source: "borough-boundaries", id: hoveredStateId },
+            { hover: true }
+          );
+        }
+      });
+      map.on("mouseleave", "borough-boundaries-fill", () => {
+        if (hoveredStateId !== null) {
+          map.setFeatureState(
+            { source: "borough-boundaries", id: hoveredStateId },
+            { hover: false }
+          );
+        }
+        hoveredStateId = null;
+      });
+      //----------add hover to parks layer---------//
+      let hoveredParkId = null;
+      map.on("mouseover", "nyc-parks", (e) => {
+        if (e.features.length > 0) {
+          if (hoveredParkId !== null) {
+            map.setFeatureState(
+              { source: "Parks_Properties", id: hoveredParkId },
+              { hover: false }
+            );
+          }
+          hoveredParkId = e.features[0].id;
+          map.setFeatureState(
+            { source: "Parks_Properties", id: hoveredParkId },
+            { hover: true }
+          );
+        }
+      });
+      map.on("mouseleave", "nyc-parks", () => {
+        if (hoveredParkId !== null) {
+          map.setFeatureState(
+            { source: "Parks_Properties", id: hoveredParkId },
+            { hover: false }
+          );
+        }
+        hoveredParkId = null;
+      });
+
+      //----------control buttons---------//
+      // document.querySelector("#fly-to-coney").addEventListener("click", () => {
+      //   map.flyTo({
+      //     center: [-73.9858, 40.5725],
+      //     zoom: 18,
+      //   });
+      // });
+      document.querySelector("#reset").addEventListener("click", () => {
+        map.flyTo({
+          center: INTI_CENTER,
+          zoom: INIT_ZOOM,
+        });
+      });
+      // document.querySelector("#fit-to-queens").addEventListener("click", () => {
+      //   map.fitBounds(
+      //     [
+      //       [-73.971334, 40.641147], // southwestern corner of the bounds
+      //       [-73.80698, 40.803824], // northeastern corner of the bounds
+      //     ],
+      //     {
+      //       zoom: 12,
+      //     }
+      //   );
+      // });
+
+      //---------toggle layer--------------//
+      document
+        .querySelector("#toggle-boroughs")
+        .addEventListener("click", () => {
+          const isVisible =
+            map.getLayoutProperty("borough-boundaries-fill", "visibility") ===
+            "visible"
+              ? (map.setLayoutProperty(
+                  "borough-boundaries-fill",
+                  "visibility",
+                  "none"
+                ),
+                map.setLayoutProperty(
+                  "borough-boundaries-line",
+                  "visibility",
+                  "none"
+                ))
+              : (map.setLayoutProperty(
+                  "borough-boundaries-fill",
+                  "visibility",
+                  "visible"
+                ),
+                map.setLayoutProperty(
+                  "borough-boundaries-line",
+                  "visibility",
+                  "visible"
+                ));
+        });
+      document
+        .querySelector("#toggle-basketball")
+        .addEventListener("click", () => {
+          const isVisible =
+            map.getLayoutProperty("basketball-courts", "visibility") ===
+            "visible"
+              ? map.setLayoutProperty("basketball-courts", "visibility", "none")
+              : map.setLayoutProperty(
+                  "basketball-courts",
+                  "visibility",
+                  "visible"
+                );
+        });
+      document.querySelector("#toggle-tracks").addEventListener("click", () => {
+        const isVisible =
+          map.getLayoutProperty("running-tracks", "visibility") === "visible"
+            ? map.setLayoutProperty("running-tracks", "visibility", "none")
+            : map.setLayoutProperty("running-tracks", "visibility", "visible");
+      });
+      document.querySelector("#toggle-POPS").addEventListener("click", () => {
+        const isVisible =
+          map.getLayoutProperty("POPS", "visibility") === "visible"
+            ? map.setLayoutProperty("POPS", "visibility", "none")
+            : map.setLayoutProperty("POPS", "visibility", "visible");
+      });
+      // create legend
+      const layers = [
+        "Public Parks",
+        "Private Parks",
+        "Basketball Courts",
+        "Running Tracks",
+      ];
+      const colors = ["green", "purple", "orange", "blue"];
+      const legend = document.getElementById("legend");
+
+      layers.forEach((layer, i) => {
+        const color = colors[i];
+        const item = document.createElement("div");
+        const key = document.createElement("span");
+        key.className = "legend-key";
+        key.style.backgroundColor = color;
+
+        const value = document.createElement("span");
+        value.innerHTML = `${layer}`;
+        item.appendChild(key);
+        item.appendChild(value);
+        legend.appendChild(item);
+      });
+      map.getCanvas().style.cursor = "default";
+    </script>
+  </body>
+</html>
