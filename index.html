@@ -24,6 +24,9 @@
         display: block;
         margin: 10px;
       }
+      h3 {
+        font-size: 1em;
+      }
       #map {
         width: 100%;
         height: 100%;
@@ -78,8 +81,7 @@
         margin-right: 5px;
       }
       #pd {
-        color: darkgreen;
-        background-color: rgb(244, 228, 199);
+        background-color: rgb(248, 237, 217);
         padding: 20px;
       }
       #reset {
@@ -99,6 +101,10 @@
     <div id="container">
       <div id="sidebar">
         <h2>NYC Park Properties</h2>
+        <h3>
+          A visual representation of the public parks, private parks, and some
+          of the park facilities in New York City.
+        </h3>
         <div id="pd"><p>Click on a park!</p></div>
         <button id="toggle-POPS">Toggle Private Parks</button>
         <button id="toggle-basketball">Toggle basketball courts</button>
@@ -157,6 +163,7 @@
         map.addSource("POPS", {
           type: "geojson",
           data: "./data/privately-owened-public-spaces.geojson",
+          promoteId: "uid",
         });
         map.addSource("basketball-courts", {
           type: "geojson",
@@ -220,8 +227,13 @@
             source: "POPS",
             paint: {
               "circle-color": "purple",
-              "circle-radius": 8,
-              "circle-opacity": 0.5,
+              "circle-radius": 5,
+              "circle-opacity": [
+                "case",
+                ["boolean", ["feature-state", "hover"], false],
+                1,
+                0.5,
+              ],
             },
             layout: {
               visibility: "visible",
@@ -321,34 +333,23 @@
           document.getElementById("pd").innerHTML = selectedPark.length
             ? `<h3>${name311}</h3><p><em><strong>Type:</strong> ${typecategory} <strong>Subcategory:</strong> ${subcategory}</em></p><strong>Location:</strong> ${location}</p>`
             : `<p>Click on a park!</p>`;
+          document.getElementById("pd").style.color = "green";
         }
       });
 
-      let hoveredStateId = null;
-      map.on("mouseover", "borough-boundaries-fill", (e) => {
-        if (e.features.length > 0) {
-          if (hoveredStateId !== null) {
-            map.setFeatureState(
-              { source: "borough-boundaries", id: hoveredStateId },
-              { hover: false }
-            );
-          }
-          hoveredStateId = e.features[0].id;
-          map.setFeatureState(
-            { source: "borough-boundaries", id: hoveredStateId },
-            { hover: true }
-          );
+      map.on("click", (e) => {
+        const selectedPark = map.queryRenderedFeatures(e.point, {
+          layers: ["POPS"],
+        });
+        if (selectedPark.length !== 0) {
+          const { facname, facdomain, address } = selectedPark[0].properties;
+          document.getElementById("pd").innerHTML = selectedPark.length
+            ? `<h3>${facname}</h3><p><em><strong>Domain:</strong> ${facdomain} <strong>Location:</strong> ${address}</p>`
+            : `<p>Click on a park!</p>`;
+          document.getElementById("pd").style.color = "purple";
         }
       });
-      map.on("mouseleave", "borough-boundaries-fill", () => {
-        if (hoveredStateId !== null) {
-          map.setFeatureState(
-            { source: "borough-boundaries", id: hoveredStateId },
-            { hover: false }
-          );
-        }
-        hoveredStateId = null;
-      });
+
       //----------add hover to parks layer---------//
       let hoveredParkId = null;
       map.on("mouseover", "nyc-parks", (e) => {
@@ -376,6 +377,32 @@
         hoveredParkId = null;
       });
 
+      let hoveredPOPId = null;
+      map.on("mouseover", "POPS", (e) => {
+        if (e.features.length > 0) {
+          if (hoveredPOPId !== null) {
+            map.setFeatureState(
+              { source: "POPS", id: hoveredPOPId },
+              { hover: false }
+            );
+          }
+          hoveredPOPId = e.features[0].id;
+          map.setFeatureState(
+            { source: "POPS", id: hoveredPOPId },
+            { hover: true }
+          );
+        }
+      });
+      map.on("mouseleave", "POPS", () => {
+        if (hoveredPOPId !== null) {
+          map.setFeatureState(
+            { source: "POPS", id: hoveredPOPId },
+            { hover: false }
+          );
+        }
+        hoveredPOPId = null;
+      });
+
       //----------control buttons---------//
       // document.querySelector("#fly-to-coney").addEventListener("click", () => {
       //   map.flyTo({
@@ -389,17 +416,6 @@
           zoom: INIT_ZOOM,
         });
       });
-      // document.querySelector("#fit-to-queens").addEventListener("click", () => {
-      //   map.fitBounds(
-      //     [
-      //       [-73.971334, 40.641147], // southwestern corner of the bounds
-      //       [-73.80698, 40.803824], // northeastern corner of the bounds
-      //     ],
-      //     {
-      //       zoom: 12,
-      //     }
-      //   );
-      // });
 
       //---------toggle layer--------------//
       document
