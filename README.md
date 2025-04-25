@@ -2,7 +2,8 @@
 
 **NYC Park Map** is a web application that visualizes New York City's parks using interactive maps. It transforms raw park data into GeoJSON format and displays it on a user-friendly interface, making it easier for users to explore and learn about parks across the city.
 
-Check out the demo: [NYC Park Map](renashen314.github.io/NYC-Park-Map/)
+Check out the demo: [NYC Park Map](https://renashen314.github.io/NYC-Park-Map/)
+
 
 ---
 
